@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Total Crime Stats by Month</title>
+    <style>
+        #myChart {
+            width: 1400px !important; 
+            height: 500px !important;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5"></script> <!-- PapaParse for parsing CSV data -->
+</head>
+<body>
+    <canvas id="myChart"></canvas>
+    <button id="toggleView">Toggle Crime/Ridership View</button>
+    <script>
+        var myChart = null;
+        var months, crimeTotals, ridershipTotals, crimePercentage;
+
+        // Fetch data from CSV files
+        async function fetchData(filePath) {
+            const response = await fetch(filePath);
+            const csvData = await response.text();
+            return Papa.parse(csvData, {
+                header: true,
+                dynamicTyping: true,
+                skipEmptyLines: true
+            }).data;
+        }
+
+        // Create or update the chart
+        function createOrUpdateChart(data, label, backgroundColor, borderColor, isPercentage = false) {
+            var ctx = document.getElementById('myChart').getContext('2d');
+            if (myChart) {
+                myChart.data.datasets[0].data = data;
+                myChart.data.datasets[0].label = label;
+                myChart.data.datasets[0].backgroundColor = backgroundColor;
+                myChart.data.datasets[0].borderColor = borderColor;
+                myChart.options.scales.y.ticks.callback = function(value) {
+                    return isPercentage ? value.toFixed(2) + '%' : value.toLocaleString();
+                };
+                myChart.update();
+            } else {
+                myChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: months,
+                        datasets: [{
+                            label: label,
+                            data: data,
+                            backgroundColor: backgroundColor,
+                            borderColor: borderColor,
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function(value) {
+                                        return isPercentage ? value.toFixed(2) + '%' : value.toLocaleString();
+                                    }
+                                },
+                                grid: {
+                                    display: false
+                                }
+                            },
+                            x: {
+                                grid: {
+                                    display: false
+                                }
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                display: true
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        async function initializeChart() {
+
+            // TESTING DATASETS
+            // const crimeData = await fetchData('../crime/recentcrime.csv');
+            // const ridershipData = await fetchData('../ridership/recentridership.csv');
+
+            // FINAL SOURCE DATA FOR THIS VIS
+            const crimeData = await fetchData('../crime/allcrime.csv');
+            const ridershipData = await fetchData('../ridership/allridership.csv');
+
+            months = crimeData.map(item => item.month);
+            crimeTotals = crimeData.map(item => item.total);
+            ridershipTotals = ridershipData.map(item => item.ridership);
+            crimePercentage = crimeTotals.map((total, index) => (total / ridershipTotals[index]) * 100);
+
+            createOrUpdateChart(crimeTotals, 'Total Subway Crimes per Month from Jan 2016 to Feb 2024', 'rgba(255, 99, 132, 0.2)', 'rgba(255, 99, 132, 1)');
+        }
+
+        document.getElementById('toggleView').addEventListener('click', function() {
+            if (this.textContent.includes('Crime/Ridership')) {
+                this.textContent = 'View Crime Data Only';
+                createOrUpdateChart(crimePercentage, 'Crime as a Percentage of Ridership per Month from Jan 2016 to Feb 2024', 'rgba(54, 162, 235, 0.2)', 'rgba(54, 162, 235, 1)', true);
+            } else {
+                this.textContent = 'Toggle Crime/Ridership View';
+                createOrUpdateChart(crimeTotals, 'Total Subway Crimes per Month', 'rgba(255, 99, 132, 0.2)', 'rgba(255, 99, 132, 1)', false);
+            }
+        });
+
+        initializeChart();
+    </script>
+</body>
+</html>

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Total OT Pay by Year</title>
+    <style>
+        /* Setting the size of the canvas element */
+        #myChart {
+            width: 1400px !important; /* Override any other styles */
+            height: 500px !important;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5"></script> <!-- PapaParse for parsing CSV data -->
+</head>
+<body>
+    <canvas id="myChart"></canvas> <!-- Removed width and height attributes here, managed by CSS instead -->
+    <script>
+        // Function to fetch and parse CSV data
+        async function fetchChartData() {
+            const response = await fetch('overtime.csv');
+            const csvData = await response.text();
+            return Papa.parse(csvData, {
+                header: true,
+                dynamicTyping: true,
+                skipEmptyLines: true,
+                transform: function(value, column) {
+                    if (column === 'Total OT Pay' && typeof value === 'string') {
+                        return parseFloat(value.replace(/[\$,]/g, ''));
+                    }
+                    return value;
+                }
+            }).data;
+        }
+
+        // Function to create the chart
+        async function createChart() {
+            const data = await fetchChartData();
+            const years = data.map(item => item.Year);
+            const totalOTPay = data.map(item => item['Total OT Pay']);
+
+            var ctx = document.getElementById('myChart').getContext('2d');
+            var myChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: years,
+                    datasets: [{
+                        label: 'Total NYPD Overtime Pay per Fiscal Year',
+                        data: totalOTPay,
+                        backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true, // Make the chart responsive
+                    maintainAspectRatio: false, // Maintain aspect ratio to prevent default scaling
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return '$' + value.toLocaleString(); // Add dollar sign before the value
+                                }
+                            },
+                            grid: {
+                                display: false // Disable the y-axis grid lines
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false // Disable the x-axis grid lines
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: true
+                        }
+                    }
+                }
+            });
+        }
+
+        createChart(); // Call the function to create the chart
+    </script>
+</body>
+</html>
